@@ -1,41 +1,43 @@
-from io import BytesIO
-
+from aiogram.dispatcher import Dispatcher
+from aiogram.utils import executor
+from aiogram import Bot
 import cv2
-import numpy as np
 import os
-import telebot
-from yolo_predictions import YOLO_Pred
 
 
-bot = telebot.TeleBot('6356861975:AAHeJy29pGeG9W11iXuk27bQn1R8A6dGQ1E')
-
-@bot.message_handler(commands=['start', 'help'])
-def start(message):
-    message_text = f'<b>Привет, {message.from_user.first_name}</b>'
-    bot.send_message(message.chat.id, message_text, parse_mode='html')
+TOKEN_API = "6356861975:AAHeJy29pGeG9W11iXuk27bQn1R8A6dGQ1E"
 
 
-@bot.message_handler(content_types=['photo'])
-def get_user_photo(message):
-
-    file_info = bot.get_file(message.photo[len(message.photo) - 1].file_id)
-    downloaded_file = bot.download_file(file_info.file_path)
-
-    src = file_info.file_path
-    with open(src, 'wb') as new_file:
-        new_file.write(downloaded_file)
-    bot.reply_to(message, "Фото добавлено")
+bot = Bot(TOKEN_API)
+dp = Dispatcher(bot)
 
 
-    yolo = YOLO_Pred('./Model/weights/best.onnx', 'data.yaml')
-    img = cv2.imread(src)
-    # cv2.imshow("1", img)
-    img_pred = yolo.predictions(img)
-    cv2.imshow('prediction image', img_pred)
+@dp.message_handler(commands=['start', 'help', 'info'])
+async def info(message):
+    await message.answer("""
+Привет! 
+Этот бот умеет определять по изображению вид сорняка: бодяк, осот или конский щавель. 
+Чтобы воспользоваться ботом, отправьте изображение растения. 
+Бот выделит на изображении сорняк с помощью рамки, подпишет его название и укажет, на сколько он уверен в точности его определения.
+""")
 
-    cv2.imwrite(os.path.join('photos', "Yolo_" + src), img_pred)
+@dp.message_handler(content_types=["photo"])
+async def get_photo(message):
+    file_info = await bot.get_file(message.photo[-1].file_id)
+    file_name = file_info.file_path.split('photos/')[1]
+    await message.photo[-1].download("static/img/" + file_name)
+    image = cv2.imread("static/img/" + file_name)
+    from yolo_predictions import YOLO_Pred
+    try:
+
+        yolo = YOLO_Pred('./Model/weights/best.onnx', 'data.yaml')
+        img_pred = yolo.predictions(image)
+        cv2.imwrite(os.path.join("static/answer", file_name), img_pred)
+
+        await message.answer_photo(photo=open(f'static/answer/{file_name}', 'rb'))
+    except AttributeError:
+        await message.answer("нет сорняко")
 
 
-
-bot.polling(none_stop=True)
-
+if __name__ == '__main__':
+    executor.start_polling(dp)

@@ -4,7 +4,7 @@ import os
 
 yolo = YOLO_Pred('./Model/weights/best.onnx','data.yaml')
 
-img = cv2.imread('photos/file_0.jpg')
+img = cv2.imread('image.jpg')
 
 
 img_pred = yolo.predictions(img)
