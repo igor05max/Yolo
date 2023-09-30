@@ -36,7 +36,7 @@ async def get_photo(message):
 
         await message.answer_photo(photo=open(f'static/answer/{file_name}', 'rb'))
     except AttributeError:
-        await message.answer("нет сорняко")
+        await message.answer("нет сорняков")
 
 
 if __name__ == '__main__':
